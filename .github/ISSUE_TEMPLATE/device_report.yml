@@ -1,0 +1,32 @@
+name: Device report
+description: Help add support for another cooler screen.
+labels: [device]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Cooler model
+      placeholder: Thermalright Peerless Vision 360
+    validations:
+      required: true
+  - type: input
+    id: usb
+    attributes:
+      label: USB ID (VID:PID)
+      description: Device Manager > the screen > Properties > Details > Hardware IDs.
+      placeholder: 87AD:70DB
+    validations:
+      required: true
+  - type: input
+    id: resolution
+    attributes:
+      label: Screen resolution, if known
+  - type: input
+    id: pm
+    attributes:
+      label: PM and SUB values, if known
+      description: Only these two numbers. Do not paste the full handshake reply, it can identify your unit.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
