@@ -7,3 +7,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Added
 
 - Project setup, license and protocol notes.
+- Core library: handshake, frame encoding, image fitting and rotation, USB transport.
+- `trcc-lcd` command-line tool with `info`, `send` and `render`.
+- CI with formatting, lints, tests and dependency checks.

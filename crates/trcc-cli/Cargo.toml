@@ -1,0 +1,20 @@
+[package]
+name = "trcc-cli"
+description = "Command-line tool for Thermalright AIO LCD screens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+trcc-core = { version = "0.1.0", path = "../trcc-core" }
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "trcc-lcd"
+path = "src/main.rs"
