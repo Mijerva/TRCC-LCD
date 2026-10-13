@@ -24,6 +24,24 @@ trcc-lcd render photo.png -o preview.jpg   Save what the screen would show
 
 `--fit` is `fill` (default, crops the edges), `fit` or `stretch`. PNG, JPEG, GIF and WebP files are supported.
 
+## Tray app
+
+`trcc-lcd-tray` runs in the background and keeps your picture on the screen. Animated GIFs play. It uses about 2 MB of memory and no CPU while showing a still picture.
+
+Right-click the tray icon to pause, reload, open the settings folder, turn on "Start with Windows" or quit.
+
+Settings live in `%APPDATA%\TRCC-LCD\config.toml` and are picked up within a few seconds of saving:
+
+```toml
+image = 'C:\Pictures\cooler.gif'
+fit = "fill"          # fill, fit or stretch
+rotation = 0          # 0, 90, 180 or 270
+quality = 90          # JPEG quality, 1 to 100
+keep_alive_secs = 0   # resend a still picture every N seconds, 0 = off
+```
+
+Only one copy runs at a time. While it runs, the command-line tool cannot reach the screen.
+
 ## Supported hardware
 
 | USB ID | Resolution | Status |

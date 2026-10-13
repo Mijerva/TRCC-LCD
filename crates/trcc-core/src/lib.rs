@@ -1,7 +1,10 @@
 //! Core library for Thermalright AIO LCD screens: protocol, image preparation
 //! and USB transport.
 
+pub mod config;
 pub mod device;
+pub mod frames;
+pub mod player;
 pub mod protocol;
 pub mod render;
 pub mod usb;
@@ -27,6 +30,10 @@ pub enum Error {
     ImageTooLarge,
     #[error("rotation must be 0, 90, 180 or 270 degrees, got {0}")]
     InvalidRotation(u16),
+    #[error("the GIF has too many frames")]
+    TooManyFrames,
+    #[error("invalid settings: {0}")]
+    Config(String),
     #[error("JPEG quality must be 1 to 100, got {0}")]
     InvalidQuality(u8),
     #[error("could not read the image: {0}")]

@@ -16,7 +16,8 @@ pub const MAX_FILE_BYTES: u64 = 32 * 1024 * 1024;
 pub const MAX_DIMENSION: u32 = 8192;
 const MAX_ALLOC: u64 = 256 * 1024 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Fit {
     /// Cover the whole screen, cropping the edges.
     #[default]
@@ -48,7 +49,7 @@ impl Rotation {
     }
 }
 
-fn limits() -> Limits {
+pub(crate) fn limits() -> Limits {
     let mut l = Limits::default();
     l.max_image_width = Some(MAX_DIMENSION);
     l.max_image_height = Some(MAX_DIMENSION);
@@ -57,6 +58,11 @@ fn limits() -> Limits {
 }
 
 pub fn load(path: &Path) -> Result<DynamicImage, Error> {
+    decode(&read_limited(path)?)
+}
+
+/// Reads a whole image file, refusing anything above [`MAX_FILE_BYTES`].
+pub fn read_limited(path: &Path) -> Result<Vec<u8>, Error> {
     let file = File::open(path)?;
     let size = file.metadata()?.len();
     if size > MAX_FILE_BYTES {
@@ -66,7 +72,10 @@ pub fn load(path: &Path) -> Result<DynamicImage, Error> {
     BufReader::new(file)
         .take(MAX_FILE_BYTES + 1)
         .read_to_end(&mut bytes)?;
-    decode(&bytes)
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        return Err(Error::ImageTooLarge);
+    }
+    Ok(bytes)
 }
 
 pub fn decode(bytes: &[u8]) -> Result<DynamicImage, Error> {
