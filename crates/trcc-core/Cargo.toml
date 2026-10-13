@@ -1,0 +1,16 @@
+[package]
+name = "trcc-core"
+description = "Protocol, image and USB code for Thermalright AIO LCD screens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+nusb = "0.2.7"
+thiserror = "2.0.21"
+
+[lints]
+workspace = true
