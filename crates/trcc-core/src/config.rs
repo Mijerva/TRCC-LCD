@@ -22,10 +22,6 @@ pub struct Config {
     pub rotation: u16,
     /// JPEG quality, 1 to 100.
     pub quality: u8,
-    /// Removed setting. Files written by older builds contain it, so it is
-    /// still read (and ignored) but never written.
-    #[serde(rename = "keep_alive_secs", skip_serializing)]
-    _keep_alive_secs: Option<u32>,
 }
 
 impl Default for Config {
@@ -35,7 +31,6 @@ impl Default for Config {
             fit: Fit::Fill,
             rotation: 0,
             quality: 90,
-            _keep_alive_secs: None,
         }
     }
 }
@@ -55,7 +50,11 @@ impl Config {
     }
 
     pub fn parse(text: &str) -> Result<Self, Error> {
-        let cfg: Self = toml::from_str(text).map_err(|e| Error::Config(e.message().to_owned()))?;
+        let bad = |e: toml::de::Error| Error::Config(e.message().to_owned());
+        let mut table: toml::Table = toml::from_str(text).map_err(bad)?;
+        // Removed setting that files from older builds still contain.
+        table.remove("keep_alive_secs");
+        let cfg = Self::deserialize(toml::Value::Table(table)).map_err(bad)?;
         cfg.validate()?;
         Ok(cfg)
     }
@@ -117,7 +116,6 @@ mod tests {
             fit: Fit::Fit,
             rotation: 180,
             quality: 75,
-            ..Config::default()
         };
         cfg.save(&path).unwrap();
         assert_eq!(Config::load(&path).unwrap(), cfg);
