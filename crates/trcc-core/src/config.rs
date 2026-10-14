@@ -22,6 +22,10 @@ pub struct Config {
     pub rotation: u16,
     /// JPEG quality, 1 to 100.
     pub quality: u8,
+    /// Removed setting. Files written by older builds contain it, so it is
+    /// still read (and ignored) but never written.
+    #[serde(rename = "keep_alive_secs", skip_serializing)]
+    _keep_alive_secs: Option<u32>,
 }
 
 impl Default for Config {
@@ -31,6 +35,7 @@ impl Default for Config {
             fit: Fit::Fill,
             rotation: 0,
             quality: 90,
+            _keep_alive_secs: None,
         }
     }
 }
@@ -112,10 +117,19 @@ mod tests {
             fit: Fit::Fit,
             rotation: 180,
             quality: 75,
+            ..Config::default()
         };
         cfg.save(&path).unwrap();
         assert_eq!(Config::load(&path).unwrap(), cfg);
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn old_keep_alive_key_is_ignored() {
+        let cfg = Config::parse("quality = 80\nkeep_alive_secs = 0").unwrap();
+        assert_eq!(cfg.quality, 80);
+        let text = toml::to_string_pretty(&cfg).unwrap();
+        assert!(!text.contains("keep_alive"), "{text}");
     }
 
     #[test]
