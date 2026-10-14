@@ -10,7 +10,6 @@ use crate::Error;
 use crate::render::{Fit, Rotation};
 
 const MAX_CONFIG_BYTES: u64 = 64 * 1024;
-pub const MAX_KEEP_ALIVE_SECS: u32 = 3600;
 pub const APP_DIR: &str = "TRCC-LCD";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -23,8 +22,6 @@ pub struct Config {
     pub rotation: u16,
     /// JPEG quality, 1 to 100.
     pub quality: u8,
-    /// Resend a still picture every this many seconds. 0 turns it off.
-    pub keep_alive_secs: u32,
 }
 
 impl Default for Config {
@@ -34,7 +31,6 @@ impl Default for Config {
             fit: Fit::Fill,
             rotation: 0,
             quality: 90,
-            keep_alive_secs: 0,
         }
     }
 }
@@ -44,11 +40,6 @@ impl Config {
         Rotation::from_degrees(self.rotation)?;
         if !(1..=100).contains(&self.quality) {
             return Err(Error::InvalidQuality(self.quality));
-        }
-        if self.keep_alive_secs > MAX_KEEP_ALIVE_SECS {
-            return Err(Error::Config(format!(
-                "keep_alive_secs must be at most {MAX_KEEP_ALIVE_SECS}"
-            )));
         }
         Ok(())
     }
@@ -121,7 +112,6 @@ mod tests {
             fit: Fit::Fit,
             rotation: 180,
             quality: 75,
-            keep_alive_secs: 30,
         };
         cfg.save(&path).unwrap();
         assert_eq!(Config::load(&path).unwrap(), cfg);
@@ -145,7 +135,6 @@ mod tests {
     fn bad_values_are_refused() {
         assert!(Config::parse("rotation = 45").is_err());
         assert!(Config::parse("quality = 0").is_err());
-        assert!(Config::parse("keep_alive_secs = 999999").is_err());
         assert!(Config::parse("fit = \"zoom\"").is_err());
         assert!(Config::parse("unknown_key = 1").is_err());
         assert!(Config::parse("rotation = -1").is_err());

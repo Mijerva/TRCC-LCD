@@ -59,6 +59,7 @@ fn run() -> anyhow::Result<()> {
             player::run(
                 || Lcd::connect(UsbTransport::open()?),
                 &player_rx,
+                player::REFRESH,
                 |s| {
                     *lock(&player_status) = s.clone();
                     ui.wake();
@@ -213,9 +214,7 @@ fn apply(path: &Path, player: &Sender<Command>) -> anyhow::Result<()> {
     };
     let frames = frames::from_file(&image, opts)
         .with_context(|| format!("could not load {}", image.display()))?;
-    let keep_alive =
-        (cfg.keep_alive_secs > 0).then(|| Duration::from_secs(cfg.keep_alive_secs.into()));
-    let _ = player.send(Command::Show { frames, keep_alive });
+    let _ = player.send(Command::Show(frames));
     Ok(())
 }
 

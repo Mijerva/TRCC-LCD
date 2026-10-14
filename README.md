@@ -16,7 +16,7 @@ Then:
 
 ```
 trcc-lcd info                              Show the connected screen
-trcc-lcd send photo.png                    Put a picture on the screen
+trcc-lcd send photo.png                    Show a picture until Ctrl+C
 trcc-lcd send photo.png --fit fit          Show the whole picture with bars
 trcc-lcd send photo.png --rotate 90        For a screen mounted sideways
 trcc-lcd render photo.png -o preview.jpg   Save what the screen would show
@@ -26,7 +26,7 @@ trcc-lcd render photo.png -o preview.jpg   Save what the screen would show
 
 ## Tray app
 
-`trcc-lcd-tray` runs in the background and keeps your picture on the screen. Animated GIFs play. It uses about 2 MB of memory and no CPU while showing a still picture.
+`trcc-lcd-tray` runs in the background and keeps your picture on the screen. Animated GIFs play. It uses about 2 MB of memory. The screen only keeps a picture for about 2 seconds, so the app resends it once a second, which takes almost no CPU.
 
 Right-click the tray icon to pause, reload, open the settings folder, turn on "Start with Windows" or quit.
 
@@ -37,7 +37,6 @@ image = 'C:\Pictures\cooler.gif'
 fit = "fill"          # fill, fit or stretch
 rotation = 0          # 0, 90, 180 or 270
 quality = 90          # JPEG quality, 1 to 100
-keep_alive_secs = 0   # resend a still picture every N seconds, 0 = off
 ```
 
 Only one copy runs at a time. While it runs, the command-line tool cannot reach the screen.
