@@ -121,7 +121,8 @@ listen("dropped", (e) => {
 setInterval(async () => {
   try {
     const v = await invoke("state");
-    const changed = v.trayRunning !== view.trayRunning;
+    // The settings file can also change by hand or from another window.
+    const changed = ["trayRunning", "image", "imageInfo", "fit", "rotation"].some((k) => v[k] !== view[k]);
     view = v;
     render();
     if (changed) refreshPreview();

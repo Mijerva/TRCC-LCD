@@ -12,6 +12,7 @@ use tauri::ipc::Response;
 use tauri::{DragDropEvent, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
 use trcc_core::config::{self, Config};
+use trcc_core::frames::{self, FrameOptions};
 use trcc_core::render::{self, Fit, Rotation};
 use trcc_core::{Error, autostart};
 
@@ -90,7 +91,8 @@ fn update(
     Ok(view(app, &cfg))
 }
 
-/// Only image files that decode are saved, so the tray never gets a broken setting.
+/// Images go through the same frame limits as the tray before they are saved,
+/// so the tray never gets a setting it cannot show.
 fn set_image(app: &App, path: &Path) -> Result<View, String> {
     let ext = path
         .extension()
@@ -99,8 +101,15 @@ fn set_image(app: &App, path: &Path) -> Result<View, String> {
     if !IMAGE_TYPES.contains(&ext.as_str()) || !path.is_file() {
         return Err("Pick a PNG, JPEG, GIF or WebP image.".into());
     }
-    render::load(path).map_err(message)?;
     update(app, |c| {
+        let opts = FrameOptions {
+            width: SCREEN,
+            height: SCREEN,
+            fit: c.fit,
+            rotation: c.rotation(),
+            quality: c.quality,
+        };
+        frames::from_file(path, opts)?;
         c.image = Some(path.to_path_buf());
         Ok(())
     })
