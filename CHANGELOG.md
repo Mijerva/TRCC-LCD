@@ -14,4 +14,4 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
-- Pictures no longer disappear after 2 seconds. The tray app and `trcc-lcd send` resend the current frame every second. The `keep_alive_secs` setting is gone.
+- Pictures no longer disappear after 2 seconds. The tray app and `trcc-lcd send` resend the current frame every second. The `keep_alive_secs` setting is no longer used. Older settings files that contain it still load.

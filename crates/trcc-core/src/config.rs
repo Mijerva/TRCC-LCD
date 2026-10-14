@@ -50,7 +50,11 @@ impl Config {
     }
 
     pub fn parse(text: &str) -> Result<Self, Error> {
-        let cfg: Self = toml::from_str(text).map_err(|e| Error::Config(e.message().to_owned()))?;
+        let bad = |e: toml::de::Error| Error::Config(e.message().to_owned());
+        let mut table: toml::Table = toml::from_str(text).map_err(bad)?;
+        // Removed setting that files from older builds still contain.
+        table.remove("keep_alive_secs");
+        let cfg = Self::deserialize(toml::Value::Table(table)).map_err(bad)?;
         cfg.validate()?;
         Ok(cfg)
     }
@@ -116,6 +120,14 @@ mod tests {
         cfg.save(&path).unwrap();
         assert_eq!(Config::load(&path).unwrap(), cfg);
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn old_keep_alive_key_is_ignored() {
+        let cfg = Config::parse("quality = 80\nkeep_alive_secs = 0").unwrap();
+        assert_eq!(cfg.quality, 80);
+        let text = toml::to_string_pretty(&cfg).unwrap();
+        assert!(!text.contains("keep_alive"), "{text}");
     }
 
     #[test]
