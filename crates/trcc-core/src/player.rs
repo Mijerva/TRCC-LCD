@@ -1,5 +1,5 @@
-//! Keeps the screen showing the current frames. Sleeps until the next frame
-//! is due, so a still picture costs no CPU between sends.
+//! Keeps the screen showing the current frames. Sleeps until the next send is
+//! due, so a still picture costs almost no CPU between sends.
 
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
@@ -10,13 +10,14 @@ use crate::frames::Frame;
 
 const RETRY_AFTER: Duration = Duration::from_secs(3);
 
+/// The screen falls back to its own default picture about 2 s after the last
+/// frame, so the current frame is resent at least this often.
+pub const REFRESH: Duration = Duration::from_secs(1);
+
 #[derive(Debug)]
 pub enum Command {
-    /// Show these frames. `keep_alive` resends a still picture on an interval.
-    Show {
-        frames: Vec<Frame>,
-        keep_alive: Option<Duration>,
-    },
+    /// Show these frames, looping if there is more than one.
+    Show(Vec<Frame>),
     Clear,
     Pause,
     Resume,
@@ -31,15 +32,20 @@ pub enum Status {
     Disconnected(String),
 }
 
-pub fn run<T, C, S>(mut connect: C, commands: &Receiver<Command>, mut on_status: S)
-where
+/// `refresh` is the longest gap between sends; pass [`REFRESH`].
+pub fn run<T, C, S>(
+    mut connect: C,
+    commands: &Receiver<Command>,
+    refresh: Duration,
+    mut on_status: S,
+) where
     T: Transport,
     C: FnMut() -> Result<Lcd<T>, Error>,
     S: FnMut(&Status),
 {
     let mut frames: Vec<Frame> = Vec::new();
-    let mut keep_alive = None;
     let mut index = 0;
+    let mut advance_at: Option<Instant> = None;
     let mut paused = false;
     let mut lcd: Option<Lcd<T>> = None;
     let mut due: Option<Instant> = None;
@@ -66,13 +72,10 @@ where
 
         match cmd {
             Some(Command::Quit) => return,
-            Some(Command::Show {
-                frames: f,
-                keep_alive: k,
-            }) => {
+            Some(Command::Show(f)) => {
                 frames = f;
-                keep_alive = k;
                 index = 0;
+                advance_at = None;
                 due = (!paused).then(Instant::now);
                 continue;
             }
@@ -113,17 +116,22 @@ where
             }
         }
 
+        if advance_at.is_some_and(|t| Instant::now() >= t) {
+            index = (index + 1) % frames.len();
+            advance_at = None;
+        }
         let frame = &frames[index];
         let sent = lcd.as_mut().map_or(Ok(()), |l| l.send_jpeg(&frame.jpeg));
         match sent {
             Ok(()) => {
                 set_status(Status::Showing, &mut on_status);
-                due = if frames.len() > 1 {
-                    index = (index + 1) % frames.len();
-                    Some(Instant::now() + frame.delay)
-                } else {
-                    keep_alive.map(|k| Instant::now() + k)
-                };
+                let now = Instant::now();
+                let mut next = now + refresh;
+                if frames.len() > 1 {
+                    let at = *advance_at.get_or_insert_with(|| now + frame.delay);
+                    next = next.min(at);
+                }
+                due = Some(next);
             }
             Err(e) => {
                 lcd = None;
@@ -184,6 +192,7 @@ mod tests {
             run(
                 || Lcd::connect(Fake(s.clone())),
                 &rx,
+                Duration::from_millis(30),
                 |st| seen.push(st.clone()),
             );
             seen
@@ -192,18 +201,16 @@ mod tests {
     }
 
     #[test]
-    fn still_picture_is_sent_once() {
+    fn still_picture_is_resent() {
         let shared = Shared::default();
         let (tx, h) = start(&shared);
-        tx.send(Command::Show {
-            frames: vec![frame(7, 0)],
-            keep_alive: None,
-        })
-        .unwrap();
-        thread::sleep(Duration::from_millis(150));
+        tx.send(Command::Show(vec![frame(7, 0)])).unwrap();
+        thread::sleep(Duration::from_millis(200));
         tx.send(Command::Quit).unwrap();
         let seen = h.join().unwrap();
-        assert_eq!(*shared.frames.lock().unwrap(), vec![7]);
+        let sent = shared.frames.lock().unwrap().clone();
+        assert!(sent.len() >= 3, "{sent:?}");
+        assert!(sent.iter().all(|&t| t == 7), "{sent:?}");
         assert_eq!(seen, vec![Status::Showing]);
     }
 
@@ -212,11 +219,7 @@ mod tests {
         let shared = Shared::default();
         let (tx, h) = start(&shared);
         let frames = vec![frame(1, 20), frame(2, 20), frame(3, 20)];
-        tx.send(Command::Show {
-            frames,
-            keep_alive: None,
-        })
-        .unwrap();
+        tx.send(Command::Show(frames)).unwrap();
         thread::sleep(Duration::from_millis(200));
         tx.send(Command::Quit).unwrap();
         h.join().unwrap();
@@ -226,30 +229,27 @@ mod tests {
     }
 
     #[test]
-    fn keep_alive_resends() {
+    fn long_frame_is_resent_until_its_delay() {
         let shared = Shared::default();
         let (tx, h) = start(&shared);
-        let keep_alive = Some(Duration::from_millis(30));
-        tx.send(Command::Show {
-            frames: vec![frame(5, 0)],
-            keep_alive,
-        })
-        .unwrap();
-        thread::sleep(Duration::from_millis(200));
+        tx.send(Command::Show(vec![frame(1, 150), frame(2, 150)]))
+            .unwrap();
+        thread::sleep(Duration::from_millis(100));
+        let early = shared.frames.lock().unwrap().clone();
+        thread::sleep(Duration::from_millis(150));
         tx.send(Command::Quit).unwrap();
         h.join().unwrap();
-        assert!(shared.frames.lock().unwrap().len() >= 3);
+        assert!(early.len() >= 2, "{early:?}");
+        assert!(early.iter().all(|&t| t == 1), "{early:?}");
+        assert!(shared.frames.lock().unwrap().contains(&2));
     }
 
     #[test]
     fn pause_stops_sending() {
         let shared = Shared::default();
         let (tx, h) = start(&shared);
-        tx.send(Command::Show {
-            frames: vec![frame(1, 20), frame(2, 20)],
-            keep_alive: None,
-        })
-        .unwrap();
+        tx.send(Command::Show(vec![frame(1, 20), frame(2, 20)]))
+            .unwrap();
         thread::sleep(Duration::from_millis(80));
         tx.send(Command::Pause).unwrap();
         thread::sleep(Duration::from_millis(30));
@@ -265,11 +265,7 @@ mod tests {
         let shared = Shared::default();
         *shared.fail_writes.lock().unwrap() = true;
         let (tx, h) = start(&shared);
-        tx.send(Command::Show {
-            frames: vec![frame(1, 0)],
-            keep_alive: None,
-        })
-        .unwrap();
+        tx.send(Command::Show(vec![frame(1, 0)])).unwrap();
         thread::sleep(Duration::from_millis(100));
         tx.send(Command::Quit).unwrap();
         let seen = h.join().unwrap();

@@ -2,10 +2,12 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::thread;
 
 use anyhow::{Context, Result};
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
+use trcc_core::player;
 use trcc_core::usb::UsbTransport;
 use trcc_core::{Fit, Lcd, Rotation, render};
 
@@ -26,9 +28,12 @@ struct Cli {
 enum Command {
     /// Show which screen is connected.
     Info,
-    /// Send an image to the screen.
+    /// Show an image on the screen until Ctrl+C.
     Send {
         image: PathBuf,
+        /// Send one frame and exit. The screen goes back to its default after about 2 seconds.
+        #[arg(long)]
+        once: bool,
         #[command(flatten)]
         opts: FrameOpts,
     },
@@ -92,12 +97,19 @@ fn run(cli: Cli) -> Result<()> {
             println!("Profile:    PM {} SUB {}", info.pm, info.sub);
             println!("Resolution: {} x {}", panel.width, panel.height);
         }
-        Command::Send { image, opts } => {
+        Command::Send { image, once, opts } => {
             let mut lcd = Lcd::connect(UsbTransport::open()?)?;
             let panel = lcd.panel();
             let jpeg = frame(&image, &opts, panel.width, panel.height)?;
             lcd.send_jpeg(&jpeg)?;
             println!("Sent {} ({:.1} KB)", image.display(), kb(jpeg.len()));
+            if !once {
+                println!("Showing it until you press Ctrl+C.");
+                loop {
+                    thread::sleep(player::REFRESH);
+                    lcd.send_jpeg(&jpeg)?;
+                }
+            }
         }
         Command::Render {
             image,

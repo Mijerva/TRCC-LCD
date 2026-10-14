@@ -44,6 +44,7 @@ Other header bytes are zero.
 - Write header and payload as one stream, in chunks of up to 16 KiB.
 - If the total length is a multiple of 512, finish with a zero-length packet.
 - PM 3 uses JPEG at 480x480.
+- The screen goes back to its built-in picture about 2 seconds after the last frame. Resend the current frame at least once a second to keep it shown.
 
 ## Sources
 
