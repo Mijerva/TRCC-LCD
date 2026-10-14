@@ -40,10 +40,7 @@ function renderStatus() {
   const s = $("status");
   s.replaceChildren();
   s.classList.toggle("warn", !view.trayRunning);
-  if (view.trayRunning) {
-    s.textContent = "Running in the tray";
-    return;
-  }
+  if (view.trayRunning) return;
   s.append("Tray app stopped");
   const start = document.createElement("button");
   start.className = "btn";
