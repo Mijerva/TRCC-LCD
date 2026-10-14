@@ -1,6 +1,5 @@
 #![windows_subsystem = "windows"]
 
-mod autostart;
 mod win;
 
 use std::fs::{self, File, OpenOptions};
@@ -15,23 +14,24 @@ use std::time::{Duration, SystemTime};
 use anyhow::Context;
 use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIconBuilder};
-use trcc_core::Lcd;
 use trcc_core::config::{self, Config};
 use trcc_core::frames::{self, FrameOptions};
 use trcc_core::player::{self, Command, Status};
 use trcc_core::usb::UsbTransport;
+use trcc_core::{Lcd, autostart};
 
 const SCREEN: u32 = 480;
 const SETTINGS_POLL: Duration = Duration::from_secs(2);
 const TOOLTIP_MAX: usize = 120;
+const UI_EXE: &str = "trcc-lcd-ui.exe";
 
 type Shared<T> = Arc<Mutex<T>>;
 
 fn main() {
-    if let Err(e) = run() {
-        if let Ok(dir) = config::app_dir() {
-            let _ = fs::write(dir.join("tray-error.log"), format!("{e:#}\n"));
-        }
+    if let Err(e) = run()
+        && let Ok(dir) = config::app_dir()
+    {
+        let _ = fs::write(dir.join("tray-error.log"), format!("{e:#}\n"));
     }
 }
 
@@ -52,20 +52,7 @@ fn run() -> anyhow::Result<()> {
     let (player_tx, player_rx) = mpsc::channel();
     let (reload_tx, reload_rx) = mpsc::channel();
 
-    let player_status = Arc::clone(&status);
-    thread::Builder::new()
-        .name("player".into())
-        .spawn(move || {
-            player::run(
-                || Lcd::connect(UsbTransport::open()?),
-                &player_rx,
-                player::REFRESH,
-                |s| {
-                    *lock(&player_status) = s.clone();
-                    ui.wake();
-                },
-            );
-        })?;
+    spawn_player(player_rx, Arc::clone(&status), ui)?;
 
     let watch_tx = player_tx.clone();
     let watch_error = Arc::clone(&settings_error);
@@ -74,16 +61,23 @@ fn run() -> anyhow::Result<()> {
         .name("settings".into())
         .spawn(move || watch_settings(&watch_path, &watch_tx, &reload_rx, &watch_error, ui))?;
 
+    let exe = std::env::current_exe()?;
     let status_item = MenuItem::new("Starting", false, None);
+    let open_window = MenuItem::new("Open TRCC-LCD", true, None);
     let pause = MenuItem::new("Pause", true, None);
     let reload = MenuItem::new("Reload settings", true, None);
     let open_folder = MenuItem::new("Open settings folder", true, None);
-    let start_with_windows =
-        CheckMenuItem::new("Start with Windows", true, autostart::is_enabled(), None);
+    let start_with_windows = CheckMenuItem::new(
+        "Start with Windows",
+        true,
+        autostart::is_enabled(&exe),
+        None,
+    );
     let quit = MenuItem::new("Quit", true, None);
     let menu = Menu::with_items(&[
         &status_item,
         &PredefinedMenuItem::separator(),
+        &open_window,
         &pause,
         &reload,
         &open_folder,
@@ -105,6 +99,10 @@ fn run() -> anyhow::Result<()> {
             if event.id == *quit.id() {
                 let _ = player_tx.send(Command::Quit);
                 return ControlFlow::Break(());
+            } else if event.id == *open_window.id() {
+                if let Some(dir) = exe.parent() {
+                    let _ = std::process::Command::new(dir.join(UI_EXE)).spawn();
+                }
             } else if event.id == *pause.id() {
                 paused = !paused;
                 let _ = player_tx.send(if paused {
@@ -119,7 +117,7 @@ fn run() -> anyhow::Result<()> {
                 let _ = std::process::Command::new("explorer").arg(&dir).spawn();
             } else if event.id == *start_with_windows.id() {
                 let wanted = start_with_windows.is_checked();
-                if autostart::set(wanted).is_err() {
+                if autostart::set(&exe, wanted).is_err() {
                     start_with_windows.set_checked(!wanted);
                 }
             }
@@ -139,6 +137,27 @@ fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn spawn_player(
+    commands: Receiver<Command>,
+    status: Shared<Status>,
+    ui: win::LoopHandle,
+) -> std::io::Result<()> {
+    thread::Builder::new()
+        .name("player".into())
+        .spawn(move || {
+            player::run(
+                || Lcd::connect(UsbTransport::open()?),
+                &commands,
+                player::REFRESH,
+                |s| {
+                    *lock(&status) = s.clone();
+                    ui.wake();
+                },
+            );
+        })?;
+    Ok(())
+}
+
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
 }
@@ -150,7 +169,7 @@ fn single_instance(dir: &Path) -> Option<File> {
         .create(true)
         .truncate(false)
         .share_mode(0)
-        .open(dir.join("tray.lock"))
+        .open(dir.join(config::TRAY_LOCK))
         .ok()
 }
 

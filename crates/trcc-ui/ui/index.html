@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TRCC-LCD</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="win">
+  <div class="top">
+    <h1>TRCC-LCD</h1>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="preview">
+    <div class="bezel"><div class="screen" id="screen">
+      <img id="shot" alt="Picture on the cooler screen" hidden>
+      <p class="empty" id="empty">Pick a picture below or drop one here.</p>
+    </div></div>
+    <div class="onscreen" id="onscreen" aria-live="polite"></div>
+  </div>
+
+  <div class="settings" id="settings">
+    <ul class="list">
+      <li>
+        <button class="item" aria-expanded="false" aria-controls="sec-image" data-sec="image">
+          <span class="name">Image</span><span class="val" id="v-image">None</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        </button>
+        <div class="panel" id="sec-image" hidden>
+          <ul class="list">
+            <li class="item">
+              <img class="thumb" id="thumb" alt="" hidden>
+              <span class="name"><span id="fname">No picture set</span><br><span class="val wide" id="finfo"></span></span>
+              <button class="btn" id="browse">Browse</button>
+            </li>
+            <li><label class="item"><input class="radio" type="radio" name="fit" value="fill"><span class="name">Fill<br><span class="val wide">Crops the edges to cover the screen</span></span></label></li>
+            <li><label class="item"><input class="radio" type="radio" name="fit" value="fit"><span class="name">Fit<br><span class="val wide">Shows the whole image with bars</span></span></label></li>
+            <li><label class="item"><input class="radio" type="radio" name="fit" value="stretch"><span class="name">Stretch</span></label></li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <button class="item" aria-expanded="false" aria-controls="sec-rotation" data-sec="rotation">
+          <span class="name">Rotation</span><span class="val" id="v-rot">0°</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        </button>
+        <div class="panel" id="sec-rotation" hidden>
+          <ul class="list">
+            <li><label class="item"><input class="radio" type="radio" name="rot" value="0"><span class="name">0°</span></label></li>
+            <li><label class="item"><input class="radio" type="radio" name="rot" value="90"><span class="name">90°</span></label></li>
+            <li><label class="item"><input class="radio" type="radio" name="rot" value="180"><span class="name">180°</span></label></li>
+            <li><label class="item"><input class="radio" type="radio" name="rot" value="270"><span class="name">270°</span></label></li>
+          </ul>
+        </div>
+      </li>
+      <li><label class="item"><span class="name">Start with Windows</span><span class="tg"><input type="checkbox" id="boot"><span></span></span></label></li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

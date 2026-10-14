@@ -11,6 +11,8 @@ use crate::render::{Fit, Rotation};
 
 const MAX_CONFIG_BYTES: u64 = 64 * 1024;
 pub const APP_DIR: &str = "TRCC-LCD";
+/// Held open by the running tray app, so other programs can tell it is running.
+pub const TRAY_LOCK: &str = "tray.lock";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]

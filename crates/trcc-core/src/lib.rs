@@ -1,6 +1,8 @@
 //! Core library for Thermalright AIO LCD screens: protocol, image preparation
 //! and USB transport.
 
+#[cfg(windows)]
+pub mod autostart;
 pub mod config;
 pub mod device;
 pub mod frames;
@@ -34,6 +36,8 @@ pub enum Error {
     TooManyFrames,
     #[error("invalid settings: {0}")]
     Config(String),
+    #[error("could not change the startup setting: {0}")]
+    Registry(String),
     #[error("JPEG quality must be 1 to 100, got {0}")]
     InvalidQuality(u8),
     #[error("could not read the image: {0}")]
